@@ -6,6 +6,7 @@ from keyboards import order_n_cancel_kb, cancel_kb, make_offer_kb
 from forms import Offer
 import requests
 router = Router()
+main_api_url = 'http://127.0.0.1:8000'
 
 
 @router.message(CommandStart())
@@ -21,15 +22,15 @@ async def get_offer(message: Message, state: FSMContext):
 
 @router.message(Offer.id)
 async def hello(message: Message, state: FSMContext):
-    global prod_id
     try:
         prod_id = message.text
         await state.update_data(id=prod_id)
-        data = requests.get(f'http://127.0.0.1:8000/take_from_db/{prod_id}').json()
-        name = data['name']
-        price = data['price']
-        desc = data['description']
-        await message.answer(f'Название товара: {name}\nЦена: {price}\nОписание: {desc}\n\nОформить заказ?',
+        data = requests.get(f'{main_api_url}/api/product/get/{prod_id}').json()
+        print(data)
+        name = data.get('title')
+        desc = data.get('description')
+        price = data.get('price')
+        await message.answer(f'Название товара: {name}\nОписание: {desc}\nЦена: {price}\n\nОформить заказ?',
                                reply_markup=order_n_cancel_kb)
         await state.set_state(Offer.is_confirmed)
     except:
@@ -58,11 +59,14 @@ async def get_address(message: Message, state: FSMContext):
         await message.answer('Хорошо. Введите id другого товара')
         await state.set_state(Offer.id)
     else:
+        data = await state.get_data()
+        prod_id = data.get('id')
         address = message.text
         await state.update_data(address=address)
-        user_id = message.from_user.id
-        offer_id = requests.post(f'http://127.0.0.1:8000/put_address_in_db?address={address}&prod_id={prod_id}&user_id={user_id}').text
+        buyer_id = message.from_user.id
+        user_id = requests.get(f'{main_api_url}/api/product/get/{prod_id}').json().get('user')
+        data = {'product': prod_id, 'address': address, 'buyer_id': buyer_id, 'user': user_id}
+        offer_id = requests.post(f'{main_api_url}/api/orders/create/', data=data).json()
+        print(offer_id)
         await message.answer(f'Ваш заказ успешно зарегистрирован. ID товара: {prod_id}, '
                                           f'адрес доставки: {address}, номер заказа: {offer_id}.', reply_markup=make_offer_kb)
-        all_data = await state.get_data()
-        print(all_data.get('id'), all_data.get('is_confirmed'), all_data.get('address'))
