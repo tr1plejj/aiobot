@@ -64,9 +64,8 @@ async def get_address(message: Message, state: FSMContext):
         address = message.text
         await state.update_data(address=address)
         buyer_id = message.from_user.id
-        user_id = requests.get(f'{main_api_url}/api/product/get/{prod_id}').json().get('user')
-        data = {'product': prod_id, 'address': address, 'buyer_id': buyer_id, 'user': user_id}
+        user = requests.get(f'{main_api_url}/api/product/get/{prod_id}').json().get('user')
+        data = {'product': prod_id, 'address': address, 'buyer_id': buyer_id, 'user': user}
         offer_id = requests.post(f'{main_api_url}/api/orders/create/', data=data).json()
-        print(offer_id)
         await message.answer(f'Ваш заказ успешно зарегистрирован. ID товара: {prod_id}, '
                                           f'адрес доставки: {address}, номер заказа: {offer_id}.', reply_markup=make_offer_kb)
